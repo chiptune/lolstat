@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+
+#.o+°"°+o._.o+° 
+#             / 
+#   LOL STAT  > 
+#             \ 
+#.o+°"°+o._.o+°`
+
+# -> rez@lol.pm 
+
+export LC_NUMERIC="en_US.UTF-8"
+
+ver="0.3.3"
+
+tmp="/dev/shm/lolstat-" # tmp file path
+url="lol.pm"     # url for ping service
+
+s0=" "           # space
+s1="${s0}|${s0}" # separator
+s2="${s0}ߋ${s0}" # separator (alternate)
+l0="\u25cb"      # led off
+l1="\u25c9"      # led on
+
+n=$[$(cat "${tmp}count" 2>/dev/null)]
+if [ ${n} -eq 0 ]; then n=0; fi
+if [ ${n} -eq 150 ]; then n=0; fi
+echo $[${n}+1] > "${tmp}count"
+
+ts=$(date "+%s%N")
+ts_p=$[$(cat "${tmp}time" 2>/dev/null | cut -d' ' -f1)]
+if [ $ts_p -eq 0 ]; then ts_p=$ts; ts=$[$ts+1000000]; fi
+echo -e "${ts} ${ts_p}" > "${tmp}time"
+t=$(awk '{printf "%.*f",3,$1/1000000000}' <<< $[$ts-$ts_p])
+
+if [ -f "${tmp}ver" ]; then
+	if [ "${ver}" != $(cat "${tmp}ver") ]; then rm "${tmp}"*; fi
+else
+	echo "${ver}" > ${tmp}'ver'
+fi
+
+if [ ${n} -eq 0 ]; then
+	curl -o "${tmp}ip" -s "http://ip.telize.com"
+	curl -o "${tmp}geo" -s "http://www.telize.com/geoip/$(cat "${tmp}ip")"
+	ping -c1 $url | awk '/time\=/{print $(NF-1)}' | sed -e 's/time=//' > ${tmp}'ping'
+fi
+
+function bar()
+	{
+	local bar="▯▯▯▯▯▯"
+	if   [ ${1} -gt 90 ]; then bar="▮▮▮▮▮▮";
+	elif [ ${1} -gt 74 ]; then bar="▮▮▮▮▮▯";
+	elif [ ${1} -gt 58 ]; then bar="▮▮▮▮▯▯";
+	elif [ ${1} -gt 42 ]; then bar="▮▮▮▯▯▯";
+	elif [ ${1} -gt 26 ]; then bar="▮▮▯▯▯▯";
+	elif [ ${1} -gt 10 ]; then bar="▮▯▯▯▯▯";
+	fi
+	echo -e "${bar}${1}%"
+	}
+
+function disk()
+	{
+	local data=$(df 2>/dev/null | grep -m 1 "${1}")
+	if [ -n "${data}" ]; then
+		echo -e "${2}$(awk '{FS=" "}{printf "%.*f",1,100/($3+$4)*$3}' <<< "${data}")%${s1}"
+	fi
+	}
+
+function io()
+	{
+	if [ -r "/sys/block/${1}/stat" ]; then
+		if [ ${n} -eq 0 ]; then cat "/sys/block/${1}/stat" | awk '{print $3,$7}' > "${tmp}io"; fi
+		local data=$(cat "/sys/block/${1}/stat" | awk '{print $3,$7}')" "$(cat "${tmp}io" 2>/dev/null | awk '{print $1,$2}');
+		echo "${data}" > "${tmp}io"
+		local bs=$(cat "/sys/block/${1}/queue/physical_block_size") #sudo dd if=/dev/sda1 of=/dev/null count=1
+		local io=$(awk 'BEGIN{FS=" ";r='${bs}'/1024/'${t}'}{printf "%s%03d %s%03d",($1-$3<r)?"'${l0}'":"'${l1}'",($1-$3)*r,($2-$4<r)?"'${l0}'":"'${l1}'",($2-$4)*r}' <<< "${data}"})
+	else
+		local io="?"
+	fi
+	echo -e "${1}${s0}${io}${s1}"
+	}
+
+function netw()
+	{
+	if [ ${n} -eq 0 ]; then
+		rm "${tmp}netw" 2>/dev/null
+		/sbin/ifconfig -s | tail -n +2 | cut -d' ' -f1 | while read i;
+		do
+			local data=$(/sbin/ifconfig "${i}" | tail -n +2)
+			local ip=$(echo "${data}" | grep "inet\ " | awk '{print $2}')
+			if [ "${ip}" = "127.0.0.1" ]; then continue; fi
+			local rx=$(cat "/sys/class/net/${i}/statistics/rx_bytes")
+			local tx=$(cat "/sys/class/net/${i}/statistics/tx_bytes")
+			echo -e "${rx} ${tx}" > "${tmp}${i}"
+			echo -e "${i} ${ip}" >> "${tmp}netw"
+		done
+	fi
+	cat "${tmp}netw" 2>/dev/null | while read i;
+	do
+		local nw=$(echo "$i" | cut -d' ' -f1)
+		local ip=$(echo "$i" | cut -d' ' -f2)
+		local rx=$(cat "/sys/class/net/${nw}/statistics/rx_bytes")
+		local tx=$(cat "/sys/class/net/${nw}/statistics/tx_bytes")
+		local rt_dat="${rx} ${tx} $(cat "${tmp}${nw}" | awk '{print $1,$2}')"
+		echo -e "${rt_dat}" > "${tmp}${nw}"
+		local rt=$(awk 'BEGIN{FS=" ";r=1024*'${t}'}{printf "%s%04.*f %s%04.*f",($1==$3)?"'${l0}'":"'${l1}'",1,($1-$3)/r,($2==$4)?"'${l0}'":"'${l1}'",1,($2-$4)/r}' <<< "${rt_dat}")
+		local data=$(/sbin/iwconfig "${nw}" 2>/dev/null)
+		if [ -z "${data}" ]; then
+			echo -e "${nw}${s0}${ip}${s0}${rt}${s1}"
+		else
+			local ssid=$(sed -ne 's/.*ESSID:"*\([^ ]*\).*"\ \ /\1/p' <<< "${data}")
+			local q=$(sed -ne 's/.*Link\ Quality="*\([^ ]*\).*/\1/p' <<< "${data}" | awk 'BEGIN{FS="/"}{printf "%02d",100/$2*$1}')
+			#local br=$(printf "%02dMb/s" $(sed -ne 's/.*Bit\ Rate="*\([^ ]*\).*/\1/p' <<< "${data}")) # Mb/s
+			echo -e "${nw}${s0}${ip}${s2}${ssid}${s0}"$(bar "${q}")"${s0}${rt}${s1}"
+		fi
+	done
+	}
+
+function ping()
+	{
+	local time=$(cat ${tmp}ping 2>/dev/null)
+	if [ "${time}" == "" ]; then time="\u2639"; fi #\u263a
+	echo -e "${url}${s0}${time}${s1}"
+	}
+
+function cpu()
+	{
+	# user nice system idle iowait irq softirq
+	local data=$(cat /proc/stat | awk '/cpu\ /{print $2+$3+$4+$5+$6+$7+$8,$5}')' '$(cat "${tmp}cpu" 2>/dev/null | awk '{print $1,$2}')
+	echo -e "${data}" > "${tmp}cpu"
+	local cpu=$(awk 'BEGIN{FS=" "}{printf "%02d",100/($1-$3)*(($1-$2)-($3-$4))}' <<< "${data}")
+	#local freq=$(lscpu | awk '/CPU\ MHz/{printf "%04dMHz",$NF}')
+	echo -e "CPU${s0}$(bar "${cpu}")${s1}"
+	}
+
+function ram()
+	{
+	local ram=$(awk 'BEGIN{FS=" "}{printf "%02d",100/$1*($1-$2)}' <<< $(awk '/Mem/{print $2" "}' /proc/meminfo))
+	echo -e "RAM${s0}$(bar "${ram}")${s1}"
+	}
+
+function weather()
+	{
+	if [ ${n} -eq 0 ]; then
+		local coord=$(cat "${tmp}geo")
+		local lon=$(echo -e "${coord}" | sed -e 's/.*"longitude":\([^,]*\).*/\1/')
+		local lat=$(echo -e "${coord}" | sed -e 's/.*"latitude":\([^,]*\).*/\1/')
+		local data=$(curl -s "http://api.openweathermap.org/data/2.5/weather?lon="${lon}"&lat="${lat}"&units=metric")
+		local temp=$(echo -e "${data}" | sed -ne 's/.*"temp":"*\([^ ]*\).*",/\1/p' | awk '{printf "%02.*f",1,$1}')
+		#local desc=$(echo -e "${data}" | sed -ne 's/.*"icon":"*\([^ ]*\).*",/\1/p')
+		#local code=$(echo "${data}" | sed -e 's/^.*"icon":"\(.*\)/\1/' | sed -e 's/".*//') # sed -e 's/^\([^"]*\)].*/\1/')
+		local code=$(echo "${data}" | sed -e 's/.*"icon":"\([^"]*\).*/\1/')
+		case "${code}" in
+			"01d"|"01n") local icon="\u2600";; # clear sky
+			"02d"|"02n") local icon="\u2601";; # few clouds
+			"03d"|"03n") local icon="\u2601";; # scattered clouds
+			"04d"|"04n") local icon="\u2601";; # broken clouds
+			"09d"|"09n") local icon="\u2602";; # shower rain
+			"10d"|"10n") local icon="\u2614";; # rain
+			"11d"|"11n") local icon="\u2608";; # thunderstorm
+			"13d"|"13n") local icon="\u2603";; # snow
+		esac
+		echo "${icon}${s0}${temp}°" > "${tmp}weather"
+	fi
+	echo -e "$(cat "${tmp}weather" 2>/dev/null)${s1}"
+	}
+
+function clock()
+	{
+	echo -e "$(date "+%d/%m \u231a %H:%M")${s1}"
+	}
+
+function window()
+	{
+	local id=$(xprop -root 2>/dev/null | awk '/_NET_ACTIVE_WINDOW\(WINDOW\)/{print $NF}')
+	xprop -id ${id} | awk '/WM_NAME\(STRING\)/{$1=$2="";print}' | cut -d'"' -f2
+	}
+
+function power()
+	{
+	if [ $(which "acpi") ]; then
+		if [ ${n} -eq 0 ]; then
+			acpi -V | head -1 | cut -d',' -f2 | sed -e 's/%//' > "${tmp}power";
+		fi
+		echo -e "\u26a1$[$(cat "${tmp}power" 2>/dev/null)]%"
+	fi
+	}
+
+function mixer()
+	{
+	# replace by "--" if mute
+	if [ $(which "amixer") ]; then
+		echo -e "\u266c$(awk 'BEGIN{printf "%02d","'$(amixer get ${1} | tail -1 | cut -d'[' -f2 | cut -d'%' -f1)'"}')%";
+	fi
+	}
+
+echo -e "${USER}${s2}$(ping)$(disk "/dev/sda" "⚙")$(disk "/home" "~")$(disk "/cloud" "◰")$(disk "/data" "⛀")$(io "sda")$(netw)$(cpu)$(ram)$(weather)$(clock)$(power)${s0}$(mixer "Master")"
+
+exit
+
+#$(printf '%03d' $[((150-${n})*2)]) # countdown
+#str2=${str:0:5}	# substr
+#echo $((`echo 47 53 | xargs printf +%s`))
+#echo "$(cat /proc/net/dev)"
+#lspci | awk '{FS=":"}/VGA/{print $NF}'
+
+#⚪ₒߋ∘𝇈 ◾◽ ▵▴△▲ ■▣□ 𝝘𝝙𝝛𝝝𝝘 𝕹𝕰𝕿𝕹
+#\u2605 # star
+#\u2620 # skull
+#\u2622 # radioactive
