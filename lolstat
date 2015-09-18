@@ -95,7 +95,7 @@ function netw()
 			local rx=$(cat "/sys/class/net/${i}/statistics/rx_bytes")
 			local tx=$(cat "/sys/class/net/${i}/statistics/tx_bytes")
 			echo -ne "${rx} ${tx}" > "${tmp}${i}"
-			echo -ne "${i} ${ip}" >> "${tmp}netw"
+			echo -e "${i} ${ip}" >> "${tmp}netw"
 		done
 	fi
 	cat "${tmp}netw" 2>/dev/null | while read i;
@@ -106,7 +106,7 @@ function netw()
 		local tx=$(cat "/sys/class/net/${nw}/statistics/tx_bytes")
 		local rt_dat="${rx} ${tx} $(cat "${tmp}${nw}" | awk '{print $1,$2}')"
 		echo -ne "${rt_dat}" > "${tmp}${nw}"
-		local rt=$(awk 'BEGIN{FS=" ";r=1024*'${t}'}{printf "%s%04.*f %s%04.*f",($1==$3)?"'${l0}'":"'${l1}'",1,($1-$3)/r,($2==$4)?"'${l0}'":"'${l1}'",1,($2-$4)/r}' <<< "${rt_dat}")
+		local rt=$(awk 'BEGIN{FS=" ";r=1024*'${t}'}{printf "%s%05.*f %s%05.*f",($1==$3)?"'${l0}'":"'${l1}'",1,($1-$3)/r,($2==$4)?"'${l0}'":"'${l1}'",1,($2-$4)/r}' <<< "${rt_dat}")
 		local data=$(/sbin/iwconfig "${nw}" 2>/dev/null)
 		if [ -z "${data}" ]; then
 			echo -ne "${nw}${s0}${ip}${s0}${rt}${s1}"
@@ -170,7 +170,7 @@ function weather()
 
 function clock()
 	{
-	echo -ne "$(date "+%d/%m \u231a %H:%M")${s1}"
+	echo -ne "$(date "+%d/%m${s0}\u231a${s0}%H:%M")${s1}"
 	}
 
 function window()
@@ -197,19 +197,7 @@ function mixer()
 	fi
 	}
 
+# my current setup
 echo -ne "${USER}${s2}$(ping)$(disk "/dev/sda" "⚙")$(disk "/home" "~")$(disk "/cloud" "◰")$(disk "/data" "⛀")$(io "sda")$(netw)$(cpu)$(ram)$(weather)$(clock)$(power)$(mixer "Master")"
 
 exit
-
-# some reminder to me :)
-
-#$(printf '%03d' $[((150-${n})*2)]) # countdown
-#str2=${str:0:5}	# substr
-#echo $((`echo 47 53 | xargs printf +%s`))
-#echo "$(cat /proc/net/dev)"
-#lspci | awk '{FS=":"}/VGA/{print $NF}'
-
-#⚪ₒߋ∘𝇈 ◾◽ ▵▴△▲ ■▣□ 𝝘𝝙𝝛𝝝𝝘
-#\u2605 # star
-#\u2620 # skull
-#\u2622 # radioactive
