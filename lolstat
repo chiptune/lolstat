@@ -24,6 +24,10 @@ s1="${s0}|${s0}" # separator
 s2="${s0}ߋ${s0}" # separator (alternate)
 l0="\u25cb"      # led off
 l1="\u25c9"      # led on
+ok="\u263a"      # ok status
+nok="\u2639"     # not ok status
+
+home="\u2302"
 
 n=$[$(cat "${tmp}count" 2>/dev/null)]
 if [ ${n} -eq 0 ]; then n=0; fi
@@ -122,7 +126,11 @@ function netw()
 function ping()
 	{
 	local time=$(cat ${tmp}ping 2>/dev/null)
-	if [ "${time}" == "" ]; then time="\u2639"; fi #\u263a
+	if [ "${time}" == "" ]; then
+		time="${nok}"
+	else
+		time=$(awk '{printf "%s%04.*f",($1<100)?"'${ok}'":"'${nok}'",2,$1/1000}' <<< "${time}")
+	fi
 	echo -ne "${url}${s0}${time}${s1}"
 	}
 
@@ -163,7 +171,7 @@ function weather()
 			"11d"|"11n") local icon="\u2608";; # thunderstorm
 			"13d"|"13n") local icon="\u2603";; # snow
 		esac
-		echo "${icon}${s0}${temp}°" > "${tmp}weather"
+		echo "${icon}${temp}°" > "${tmp}weather"
 	fi
 	echo -ne "$(cat "${tmp}weather" 2>/dev/null)${s1}"
 	}
@@ -198,6 +206,6 @@ function mixer()
 	}
 
 # my current setup
-echo -ne "${USER}${s2}$(ping)$(disk "/dev/sda" "⚙")$(disk "/home" "~")$(disk "/cloud" "◰")$(disk "/data" "⛀")$(io "sda")$(netw)$(cpu)$(ram)$(weather)$(clock)$(power)$(mixer "Master")"
+echo -ne "${USER}${s2}$(ping)$(disk "/dev/sda" "/")$(disk "/home" "${home}")$(disk "/cloud" "◰")$(disk "/data" "⛀")$(io "sda")$(netw)$(cpu)$(ram)$(weather)$(clock)$(power)$(mixer "Master")"
 
 exit
