@@ -1,16 +1,20 @@
 # lolstat
 an i3wm status bar alternative
 
-## usage
+### usage
 
-create and save an i3status.sh file:
+1. copy <b>lolstat</b> to your i3 config directory (usually ~/.i3/)
 
-> \#!/usr/bin/env bash
-> i3status | while :
-> do
->   read line
->   <install_path>lolstat 2>/dev/null || exit 1
-> done
+2. create and save an <b>i3status.sh</b> file:
 
+    \#!/usr/bin/env bash<br>
+    i3status -c ~/.i3/<b>i3status.conf</b> | while :<br>
+    do read line; ~/.i3/<b>lolstat</b> 2>/dev/null || exit 1; done
 
-1. edit your ~/.i3/config file and update the "status_command" to call the i3status.sh file
+  don't forget to chmod 775 it!
+
+3. edit your ~/.i3/config file and update the "status_command" to call the previously created file
+
+    status_command ~/.i3/<b>i3status.sh</b>
+
+4. reload your i3wm setup! \\:D/
