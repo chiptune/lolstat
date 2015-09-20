@@ -21,13 +21,19 @@ url="lol.pm"     # url for ping service
 
 s0=" "           # space
 s1="${s0}|${s0}" # separator
-s2="${s0}ߋ${s0}" # separator (alternate)
 l0="\u25cb"      # led off
 l1="\u25c9"      # led on
+warn="\u26a0"    # warning
+dead="\u2620"    # he's dead jim
 ok="\u263a"      # ok status
 nok="\u2639"     # not ok status
 
 home="\u2302"
+cloud="\u2601"
+data="\u26c2"
+
+kbd="\u2328"
+wave="\u223f"
 
 n=$[$(cat "${tmp}count" 2>/dev/null)]
 if [ ${n} -eq 0 ]; then n=0; fi
@@ -69,7 +75,7 @@ function disk()
 	{
 	local data=$(df 2>/dev/null | grep -m 1 "${1}")
 	if [ -n "${data}" ]; then
-		echo -ne "${2}$(awk '{FS=" "}{printf "%.*f",1,100/($3+$4)*$3}' <<< "${data}")%${s1}"
+		echo -ne "${s1}${2}$(awk '{FS=" "}{printf "%.*f",1,100/($3+$4)*$3}' <<< "${data}")%"
 	fi
 	}
 
@@ -84,7 +90,23 @@ function io()
 	else
 		local io="?"
 	fi
-	echo -ne "${1}${s0}${io}${s1}"
+	echo -ne "${s1}${1}${s0}${io}"
+	}
+
+function cpu()
+	{
+	# user nice system idle iowait irq softirq
+	local data=$(cat /proc/stat | awk '/cpu\ /{print $2+$3+$4+$5+$6+$7+$8,$5}')' '$(cat "${tmp}cpu" 2>/dev/null | awk '{print $1,$2}')
+	echo -ne "${data}" > "${tmp}cpu"
+	local cpu=$(awk 'BEGIN{FS=" "}{printf "%02d",100/($1-$3)*(($1-$2)-($3-$4))}' <<< "${data}")
+	#local freq=$(lscpu | awk '/CPU\ MHz/{printf "%04dMHz",$NF}')
+	echo -ne "${s1}CPU${s0}$(bar "${cpu}")"
+	}
+
+function ram()
+	{
+	local ram=$(awk 'BEGIN{FS=" "}{printf "%02d",100/$1*($1-$2)}' <<< $(awk '/Mem/{print $2" "}' /proc/meminfo))
+	echo -ne "${s1}RAM${s0}$(bar "${ram}")"
 	}
 
 function netw()
@@ -118,7 +140,7 @@ function netw()
 			local ssid=$(sed -ne 's/.*ESSID:"*\([^ ]*\).*"\ \ /\1/p' <<< "${data}")
 			local q=$(sed -ne 's/.*Link\ Quality="*\([^ ]*\).*/\1/p' <<< "${data}" | awk 'BEGIN{FS="/"}{printf "%02d",100/$2*$1}')
 			#local br=$(printf "%02dMb/s" $(sed -ne 's/.*Bit\ Rate="*\([^ ]*\).*/\1/p' <<< "${data}")) # Mb/s
-			echo -ne "${nw}${s0}${ip}${s2}${ssid}${s0}"$(bar "${q}")"${s0}${rt}${s1}"
+			echo -ne "${s1}${nw}${s0}${ip}${wave}${ssid}${s0}"$(bar "${q}")"${s0}${rt}"
 		fi
 	done
 	}
@@ -127,27 +149,11 @@ function ping()
 	{
 	local time=$(cat ${tmp}ping 2>/dev/null)
 	if [ "${time}" == "" ]; then
-		time="${nok}"
+		time="${dead}"
 	else
 		time=$(awk '{printf "%s%04.*f",($1<100)?"'${ok}'":"'${nok}'",2,$1/1000}' <<< "${time}")
 	fi
-	echo -ne "${url}${s0}${time}${s1}"
-	}
-
-function cpu()
-	{
-	# user nice system idle iowait irq softirq
-	local data=$(cat /proc/stat | awk '/cpu\ /{print $2+$3+$4+$5+$6+$7+$8,$5}')' '$(cat "${tmp}cpu" 2>/dev/null | awk '{print $1,$2}')
-	echo -ne "${data}" > "${tmp}cpu"
-	local cpu=$(awk 'BEGIN{FS=" "}{printf "%02d",100/($1-$3)*(($1-$2)-($3-$4))}' <<< "${data}")
-	#local freq=$(lscpu | awk '/CPU\ MHz/{printf "%04dMHz",$NF}')
-	echo -ne "CPU${s0}$(bar "${cpu}")${s1}"
-	}
-
-function ram()
-	{
-	local ram=$(awk 'BEGIN{FS=" "}{printf "%02d",100/$1*($1-$2)}' <<< $(awk '/Mem/{print $2" "}' /proc/meminfo))
-	echo -ne "RAM${s0}$(bar "${ram}")${s1}"
+	echo -ne "${s1}${url}${s0}${time}"
 	}
 
 function weather()
@@ -173,12 +179,12 @@ function weather()
 		esac
 		echo "${icon}${temp}°" > "${tmp}weather"
 	fi
-	echo -ne "$(cat "${tmp}weather" 2>/dev/null)${s1}"
+	echo -ne "${s1}$(cat "${tmp}weather" 2>/dev/null)"
 	}
 
 function clock()
 	{
-	echo -ne "$(date "+%d/%m${s0}\u231a${s0}%H:%M")${s1}"
+	echo -ne "${s1}$(date "+%d/%m${s0}\u231a${s0}%H:%M")"
 	}
 
 function window()
@@ -193,7 +199,7 @@ function power()
 		if [ ${n} -eq 0 ]; then
 			acpi -V | head -1 | cut -d',' -f2 | sed -e 's/%//' > "${tmp}power";
 		fi
-		echo -ne "\u26a1$[$(cat "${tmp}power" 2>/dev/null)]%${s0}"
+		echo -ne "${s0}\u26a1$[$(cat "${tmp}power" 2>/dev/null)]%"
 	fi
 	}
 
@@ -201,11 +207,11 @@ function mixer()
 	{
 	# TODO: replace by "--" if mute
 	if [ $(which "amixer") ]; then
-		echo -ne "\u266c$(awk 'BEGIN{printf "%02d","'$(amixer get ${1} | tail -1 | cut -d'[' -f2 | cut -d'%' -f1)'"}')%";
+		echo -ne "${s0}\u266c$(awk 'BEGIN{printf "%02d","'$(amixer get ${1} | tail -1 | cut -d'[' -f2 | cut -d'%' -f1)'"}')%";
 	fi
 	}
 
 # my current setup
-echo -ne "${USER}${s2}$(ping)$(disk "/dev/sda" "/")$(disk "/home" "${home}")$(disk "/cloud" "◰")$(disk "/data" "⛀")$(io "sda")$(netw)$(cpu)$(ram)$(weather)$(clock)$(power)$(mixer "Master")"
+echo -ne "${USER}$(disk "/dev/sda" "/")$(disk "/home" "${home}")$(disk "/cloud" "${cloud}")$(disk "/data" "${data}")$(io "sda")$(cpu)$(ram)$(netw)$(ping)$(weather)$(clock)$(power)$(mixer "Master")"
 
 exit
