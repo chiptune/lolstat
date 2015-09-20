@@ -14,7 +14,7 @@
 
 export LC_NUMERIC="en_US.UTF-8"
 
-ver="0.3.4"
+ver="0.3.5"
 
 tmp="/dev/shm/lolstat-" # tmp file path
 url="lol.pm"     # url for ping service
@@ -30,7 +30,7 @@ nok="\u2639"     # not ok status
 
 home="\u2302"
 cloud="\u2601"
-data="\u26c2"
+data="\u26c0"
 
 kbd="\u2328"
 wave="\u223f"
@@ -69,6 +69,11 @@ function bar()
 	elif [ ${1} -gt 10 ]; then bar="▮▯▯▯▯▯";
 	fi
 	echo -ne "${bar}${1}%"
+	}
+
+function uptime() # countdown to next update
+	{
+	echo -ne "${s0}$(printf '%03d' $[((150-${n})*2)])"
 	}
 
 function disk()
@@ -212,6 +217,6 @@ function mixer()
 	}
 
 # my current setup
-echo -ne "${USER}$(disk "/dev/sda" "/")$(disk "/home" "${home}")$(disk "/cloud" "${cloud}")$(disk "/data" "${data}")$(io "sda")$(cpu)$(ram)$(netw)$(ping)$(weather)$(clock)$(power)$(mixer "Master")"
+echo -ne "${USER}$(uptime)$(disk "/dev/sda" "/")$(disk "/home" "${home}")$(disk "/cloud" "${cloud}")$(disk "/data" "${data}")$(io "sda")$(cpu)$(ram)$(netw)$(ping)$(weather)$(clock)$(power)$(mixer "Master")"
 
 exit
