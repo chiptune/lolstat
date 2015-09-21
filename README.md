@@ -3,9 +3,9 @@ an i3wm status bar alternative
 
 ### usage
 
-1.  copy <b>lolstat</b> to your i3 config directory (usually ~/.i3/)
+1.  copy **lolstat** to your i3 config directory (usually ~/.i3/)
 
-2.  create and save an <b>i3status.sh</b> file:
+2.  create and save an **i3status.sh** file:
 
         #!/usr/bin/env bash
         i3status -c ~/.i3/i3status.conf | while :
