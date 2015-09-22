@@ -18,3 +18,10 @@ an i3wm status bar alternative
         status_command ~/.i3/i3status.sh
 
 4.  reload your i3wm setup! \\:D/
+
+### bugfix
+
+if you encounter encoding errors with awk, try this method:
+        
+1. execute the command: **sudo update-alternatives --config awk**
+2. select **/usr/bin/mawk** as default awk
