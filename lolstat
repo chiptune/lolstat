@@ -8,12 +8,12 @@
 
 # https://github.com/chiptune/lolstat
 
-ver="0.3.5"
+ver="0.3.6"
 
 tmp="/dev/shm/lolstat-" # tmp file path
 timer=2          # use i3status.conf interval
 
-s0=" "           # space
+s0="\u0020"      # space
 s1="${s0}|${s0}" # separator
 l0="\u25cb"      # led off
 l1="\u25c9"      # led on
@@ -22,12 +22,14 @@ dead="\u2620"    # he's dead jim
 ok="\u263a"      # ok status
 nok="\u2639"     # not ok status
 
+# unicode glyphs
 home="\u2302"
 cloud="\u2601"
 data="\u26c0"
 
 kbd="\u2328"
 wave="\u223f"
+star="\u2605"
 
 n=$[$(cat "${tmp}count" 2>/dev/null)]
 if [ ${n} -eq 0 ]; then n=0; fi
@@ -84,7 +86,7 @@ function io()
 		local data=$(cat "/sys/block/${1}/stat" | mawk '{print $3,$7}')" "$(cat "${tmp}io" 2>/dev/null | mawk '{print $1,$2}');
 		echo "${data}" > "${tmp}io"
 		local bs=$(cat "/sys/block/${1}/queue/physical_block_size") #sudo dd if=/dev/sda1 of=/dev/null count=1
-		local io=$(mawk 'BEGIN{FS=" ";r='${bs}'/1024/'${t}'}{printf "%s%03d %s%03d",($1-$3<r)?"'${l0}'":"'${l1}'",($1-$3)*r,($2-$4<r)?"'${l0}'":"'${l1}'",($2-$4)*r}' <<< "${data}"})
+		local io=$(mawk 'BEGIN{FS=" ";r='${bs}'/1024/'${t}'}{printf "%s%03d'${s0}'%s%03d",($1-$3<r)?"'${l0}'":"'${l1}'",($1-$3)*r,($2-$4<r)?"'${l0}'":"'${l1}'",($2-$4)*r}' <<< "${data}"})
 	else
 		local io="?"
 	fi
@@ -97,8 +99,8 @@ function cpu()
 	local data=$(cat /proc/stat | mawk '/cpu\ /{print $2+$3+$4+$5+$6+$7+$8,$5}')' '$(cat "${tmp}cpu" 2>/dev/null | mawk '{print $1,$2}')
 	echo -ne "${data}" > "${tmp}cpu"
 	local cpu=$(mawk 'BEGIN{FS=" "}{printf "%02d",100/($1-$3)*(($1-$2)-($3-$4))}' <<< "${data}")
-	#local freq=$(lscpu | mawk '/CPU\ MHz/{printf "%04dMHz",$NF}')
-	echo -ne "${s1}CPU${s0}$(bar "${cpu}")"
+	local freq=$(lscpu | mawk '/CPU\ MHz/{printf "%04dMHz",$NF}')
+	echo -ne "${s1}CPU${s0}${freq}${s0}$(bar "${cpu}")"
 	}
 
 function ram()
@@ -130,7 +132,7 @@ function netw()
 		local tx=$(cat "/sys/class/net/${nw}/statistics/tx_bytes")
 		local rt_dat="${rx} ${tx} $(cat "${tmp}netw-${nw}" | mawk '{print $1,$2}')"
 		echo -ne "${rt_dat}" > "${tmp}netw-${nw}"
-		local rt=$(mawk 'BEGIN{FS=" ";r=1024*'${t}'}{printf "%s%05.*f %s%05.*f",($1==$3)?"'${l0}'":"'${l1}'",1,($1-$3)/r,($2==$4)?"'${l0}'":"'${l1}'",1,($2-$4)/r}' <<< "${rt_dat}")
+		local rt=$(mawk 'BEGIN{FS=" ";r=1024*'${t}'}{printf "%s%05.*f'${s0}'%s%05.*f",($1==$3)?"'${l0}'":"'${l1}'",1,($1-$3)/r,($2==$4)?"'${l0}'":"'${l1}'",1,($2-$4)/r}' <<< "${rt_dat}")
 		local data=$(/sbin/iwconfig "${nw}" 2>/dev/null)
 		if [ -z "${data}" ]; then
 			echo -ne "${s1}${nw}${s0}${ip}${s0}${rt}"
