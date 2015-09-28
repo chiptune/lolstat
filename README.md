@@ -4,19 +4,19 @@ an i3wm status bar alternative
 ### configuration
 
 the last line of the script is my current status bar configuration, it use:
-        
-        ${USER}
-        $(upd)
-        $(disk "/dev/sda" "/") / $(disk "/home" "${home}") / etc...
-        $(io "sda")
-        $(cpu)
-        $(ram)
-        $(netw)
-        $(url "lol.pm" "lol")
-        $(weather)
-        $(clock)
-        $(power)
-        $(mixer "Master")
+
+* ${USER}
+* $(upd)
+* $(disk "**path**" "**name**")
+* $(io "**partition**")
+* $(cpu)
+* $(ram)
+* $(netw)
+* $(url "**url**" "**name**")
+* $(weather)
+* $(clock)
+* $(power)
+* $(mixer "**channel**")
 
 ### setup
 
@@ -40,4 +40,4 @@ the last line of the script is my current status bar configuration, it use:
 
 if you encounter some bugs on your computer, email me the output!
 
-        **time(~/.i3/lolstat)
+        time(~/.i3/lolstat)
