@@ -1,7 +1,24 @@
 # lolstat
 an i3wm status bar alternative
 
-### usage
+### configuration
+
+the last line of the script is my current status bar configuration, it use:
+        
+        ${USER}
+        $(upd)
+        $(disk "/dev/sda" "/") / $(disk "/home" "${home}") / etc...
+        $(io "sda")
+        $(cpu)
+        $(ram)
+        $(netw)
+        $(url "lol.pm" "lol")
+        $(weather)
+        $(clock)
+        $(power)
+        $(mixer "Master")
+
+### setup
 
 1.  copy **lolstat** to your i3 config directory (usually ~/.i3/)
 
@@ -21,7 +38,6 @@ an i3wm status bar alternative
 
 ### bugfix
 
-if you encounter encoding errors with awk, try this method:
-        
-1. execute the command: **sudo update-alternatives --config awk**
-2. select **/usr/bin/mawk** as default awk
+if you encounter some bugs on your computer, email me the output!
+
+        **time(~/.i3/lolstat)
