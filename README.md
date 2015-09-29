@@ -31,13 +31,13 @@ $(mixer "**channel**") | current sound mixer **channel** volume (generally `Mast
 i3status -c ~/.i3/i3status.conf | while read line; do ~/.i3/lolstat 2>/dev/null || exit 1; done
 ```
 
-3.  edit your `~/.i3/config` file and update the **status_command** key to call the previously created file
+3.  edit your `~/.i3/config` file and update the `status_command` line as following:
 
 ```bash
 status_command ~/.i3/i3status.sh
 ```
 
-4.  reload your i3wm setup! \\:D/
+4.  reload your i3wm setup and it's done! \\:D/
 
 ### bugfix
 
