@@ -28,8 +28,7 @@ $(mixer "**channel**") | current sound mixer **channel** volume (generally `Mast
 
 ```bash
 #!/usr/bin/env bash
-i3status -c ~/.i3/i3status.conf | while :
-do read line; ~/.i3/lolstat 2>/dev/null || exit 1; done
+i3status -c ~/.i3/i3status.conf | while read line; do ~/.i3/lolstat 2>/dev/null || exit 1; done
 ```
 
 3.  edit your `~/.i3/config` file and update the **status_command** key to call the previously created file
