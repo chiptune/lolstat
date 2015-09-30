@@ -1,5 +1,6 @@
 # lolstat
 an i3wm status bar alternative
+> ![system](http://lol.pm/lolstat/system.png)
 
 ### configuration
 
