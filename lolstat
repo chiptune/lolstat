@@ -166,7 +166,7 @@ function weather()
 		local coord=$(cat "${tmp}geo")
 		local lon=$(echo -ne "${coord}" | sed -e 's/.*"longitude":\([^,]*\).*/\1/')
 		local lat=$(echo -ne "${coord}" | sed -e 's/.*"latitude":\([^,]*\).*/\1/')
-		local data=$(curl -s "http://api.openweathermap.org/data/2.5/weather?lon="${lon}"&lat="${lat}"&units=metric")
+		local data=$(curl -s "http://api.openweathermap.org/data/2.5/weather?lon="${lon}"&lat="${lat}"&units=metric&APPID=c8236a643beb666d2042d55869b69258")
 		local temp=$(echo -ne "${data}" | sed -ne 's/.*"temp":"*\([^ ]*\).*",/\1/p' | mawk '{printf "%02.*f",1,$1}')
 		#local desc=$(echo -ne "${data}" | sed -ne 's/.*"icon":"*\([^ ]*\).*",/\1/p')
 		local code=$(echo "${data}" | sed -e 's/.*"icon":"\([^"]*\).*/\1/')
@@ -215,6 +215,6 @@ function mixer()
 	}
 
 # my current setup
-echo -ne "${USER}$(upd)$(disk "/dev/sda" "/")$(disk "/home" "${home}")$(disk "/cloud" "${cloud}")$(disk "/data" "${data}")$(io "sda")$(cpu)$(ram)$(netw)$(url "lol.pm" "lol")$(weather)$(clock)$(power)$(mixer "Master")"
+echo -ne "${USER}$(upd)$(disk "/dev/sda" "/")$(disk "/home" "${home}")$(disk "/cloud" "${cloud}")$(disk "/data" "${data}")$(io "sda")$(cpu)$(ram)$(netw)$(url "poulet.zoy.org" "lol")$(weather)$(clock)$(power)$(mixer "Master")"
 
 exit
