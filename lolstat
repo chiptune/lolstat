@@ -8,7 +8,7 @@
 
 # https://github.com/chiptune/lolstat
 
-ver="0.3.6"
+ver="0.3.7"
 
 tmp="/dev/shm/lolstat-" # tmp file path
 timer=2          # use i3status.conf interval
@@ -49,8 +49,8 @@ else
 fi
 
 if [ ${n} -eq 0 ]; then
-	curl -o "${tmp}ip" -s "http://ip.telize.com"
-	curl -o "${tmp}geo" -s "http://www.telize.com/geoip/$(cat "${tmp}ip")"
+	curl -o "${tmp}ip" -s "http://ipecho.net/plain"
+	curl -o "${tmp}geo" -s "http://freegeoip.net/json/$(cat "${tmp}ip")"
 fi
 
 function bar()
@@ -168,7 +168,6 @@ function weather()
 		local lat=$(echo -ne "${coord}" | sed -e 's/.*"latitude":\([^,]*\).*/\1/')
 		local data=$(curl -s "http://api.openweathermap.org/data/2.5/weather?lon="${lon}"&lat="${lat}"&units=metric&APPID=c8236a643beb666d2042d55869b69258")
 		local temp=$(echo -ne "${data}" | sed -ne 's/.*"temp":"*\([^ ]*\).*",/\1/p' | mawk '{printf "%02.*f",1,$1}')
-		#local desc=$(echo -ne "${data}" | sed -ne 's/.*"icon":"*\([^ ]*\).*",/\1/p')
 		local code=$(echo "${data}" | sed -e 's/.*"icon":"\([^"]*\).*/\1/')
 		case "${code}" in
 			"01d"|"01n") local icon="\u2600";; # clear sky
