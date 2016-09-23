@@ -8,7 +8,7 @@
 
 # https://github.com/chiptune/lolstat
 
-ver="0.4.0"
+ver="0.4.2"
 
 tmp="/dev/shm/lolstat-" # tmp file path
 timer=2          # use i3status.conf interval
@@ -54,8 +54,10 @@ else
 fi
 
 if [ ${n} -eq 0 ]; then
-  curl -o "${tmp}ip" -s "http://ipecho.net/plain" -m ${tmax} --connect-timeout ${tout}
-  curl -o "${tmp}geo" -s "https://freegeoip.lwan.ws/json/$(cat "${tmp}ip")" -m ${tmax} --connect-timeout ${tout}
+  curl -o "${tmp}ip" -s "http://ipecho.net/plain"\
+  -m ${tmax} --connect-timeout ${tout}
+  curl -o "${tmp}geo" -s "https://freegeoip.lwan.ws/json/$(cat "${tmp}ip")"\
+  -m ${tmax} --connect-timeout ${tout}
 fi
 
 function bar()
@@ -105,7 +107,7 @@ function cpu()
   echo -ne "${data}" > "${tmp}cpu"
   cpu=$(mawk 'BEGIN{FS=" "}{printf "%02d",100/($2-$4)*($1-$3)}' <<< "${data}")
   freq=$(lscpu | mawk '/CPU\ MHz/{printf "%04dMHz",$NF}')
-  if [ "${1}" -eq 1 ]; then
+  if [ "${1}" ]; then
     echo -ne "CPU${s0}${freq}${arw}$(bar "${cpu}")"
   else
     echo -ne "CPU${arw}$(bar "${cpu}")"
@@ -114,7 +116,9 @@ function cpu()
 
 function ram()
   {
-  ram=$(mawk 'BEGIN{FS=" "}{printf "%02d",100/$1*($1-$2)}' <<< $(mawk '/Mem/{print $2" "}' /proc/meminfo))
+  total=$(mawk '/MemTotal/{print $2}' /proc/meminfo)
+  free=$(mawk '/MemFree/{print $2}' /proc/meminfo)
+  ram=$(mawk 'BEGIN{FS=" "}{printf "%02d",100/$1*($1-$2)}' <<< "${total} ${free}")
   echo -ne "RAM${arw}$(bar "${ram}")"
   }
 
@@ -224,6 +228,21 @@ function mixer()
   }
 
 # my current setup
-echo -ne "${USER}${s0}$(upd)${s1}$(disk "/dev/sda" "/")${s0}$(disk "/home" "${home}")${s0}$(disk "/cloud" "${cloud}")${s0}$(disk "/data" "${data}")${s1}$(io "sda")${s1}$(cpu 1)${s0}$(ram)$(netw)${s1}$(url "poulet.zoy.org" "lol")${s1}$(clock)${s0}$(weather)${s1}$(power)${s0}$(mixer "Master")"
+echo -ne "\
+${USER}${s1}\
+$(disk "/dev/sda" "/")${s0}\
+$(disk "/home" "${home}")${s0}\
+$(disk "/cloud" "${cloud}")${s0}\
+$(disk "/data" "${data}")${s1}\
+$(io "sda")${s1}\
+$(cpu "")${s0}\
+$(ram)\
+$(netw)${s1}\
+$(url "poulet.zoy.org" "zoy")${s1}\
+$(clock)${s0}\
+$(weather)${s1}\
+$(power)${s0}\
+$(mixer "Master")\
+"
 
 exit
