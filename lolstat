@@ -56,7 +56,7 @@ fi
 if [ ${n} -eq 0 ]; then
   curl -o "${tmp}ip" -s "http://ipecho.net/plain"\
   -m ${tmax} --connect-timeout ${tout}
-  curl -o "${tmp}geo" -s "https://freegeoip.lwan.ws/json/$(cat "${tmp}ip")"\
+  curl -o "${tmp}geo" -s "https://freegeoip.net/json/$(cat "${tmp}ip")"\
   -m ${tmax} --connect-timeout ${tout}
 fi
 
