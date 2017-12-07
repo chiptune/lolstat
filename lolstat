@@ -8,22 +8,22 @@
 
 # https://github.com/chiptune/lolstat
 
-ver="0.4.2"
+ver="0.4.4"
 
 tmp="/dev/shm/lolstat-" # tmp file path
-timer=2          # use i3status.conf interval
-tmax=2           # max time for curl call
-tout=2           # curl connection timeout
+timer=2           # use i3status.conf interval
+tmax=2            # max time for curl call
+tout=2            # curl connection timeout
 
-s0="\u0020"      # space
-s1="${s0}|${s0}" # separator
-l0="\u25cb"      # led off
-l1="\u25c9"      # led on
-dead="\u2620"    # he's dead jim
-ok="\u263a"      # ok status
-nok="\u2639"     # not ok status
-arw="\u27a9"     # arrow
-wave="\u223f"    # wave
+s0="\u0020"       # space
+s1="|${s0}"       # separator
+l0="\u25cb"       # led off
+l1="\u25c9"       # led on
+dead="\u2620"     # he's dead jim
+ok="\u263a"       # ok status
+nok="\u2639"      # not ok status
+arw="»"           # arrow "\u27a9"
+wave="\u223f"     # wave
 
 # unicode glyphs
 home="\u2302"
@@ -42,7 +42,7 @@ if [ ${n} -eq 150 ]; then n=0; fi
 echo $((n+1)) > "${tmp}count"
 
 ts=$(date "+%s%N")
-ts_p=$(cut -d' ' -f1 < "${tmp}time")
+ts_p=$(cut -d ' ' -f 1 < "${tmp}time")
 if [ "${ts_p}" -eq 0 ]; then ts_p=${ts}; ts=$((ts+1000000)); fi
 echo -ne "${ts} ${ts_p}" > "${tmp}time"
 t=$(mawk '{printf "%.*f",3,$1/1000000000}' <<< $((ts-ts_p)))
@@ -75,14 +75,14 @@ function bar()
 
 function upd() # countdown to next update
   {
-  echo -ne "$(printf '%03d' $(((150-n)*timer)))"
+  echo -ne "$(printf '%03d' $(((150-n)*timer)))${s0}"
   }
 
 function disk()
   {
-  data=$(df 2>/dev/null | grep -m 1 "${1}")
+  data=$(df 2>/dev/null | grep -m 1 -E "\ ${1}$")
   if [ -n "${data}" ]; then
-    echo -ne "${2}$(mawk '{FS=" "}{printf "%.*f",1,100/($3+$4)*$3}' <<< "${data}")%"
+    echo -ne "${2}$(mawk '{FS=" "}{printf "%.*f",1,100/($3+$4)*$3}' <<< "${data}")%${s0}"
   fi
   }
 
@@ -97,7 +97,7 @@ function io()
   else
     io="?"
   fi
-  echo -ne "${1}${arw}${io}"
+  echo -ne "${1}${arw}${io}${s0}"
   }
 
 function cpu()
@@ -108,9 +108,9 @@ function cpu()
   cpu=$(mawk 'BEGIN{FS=" "}{printf "%02d",100/($2-$4)*($1-$3)}' <<< "${data}")
   freq=$(lscpu | mawk '/CPU\ MHz/{printf "%04dMHz",$NF}')
   if [ "${1}" ]; then
-    echo -ne "CPU${s0}${freq}${arw}$(bar "${cpu}")"
+    echo -ne "CPU${arw}${freq}${s0}$(bar "${cpu}")${s0}"
   else
-    echo -ne "CPU${arw}$(bar "${cpu}")"
+    echo -ne "CPU${arw}$(bar "${cpu}")${s0}"
   fi
   }
 
@@ -119,14 +119,18 @@ function ram()
   total=$(mawk '/MemTotal/{print $2}' /proc/meminfo)
   free=$(mawk '/MemFree/{print $2}' /proc/meminfo)
   ram=$(mawk 'BEGIN{FS=" "}{printf "%02d",100/$1*($1-$2)}' <<< "${total} ${free}")
-  echo -ne "RAM${arw}$(bar "${ram}")"
+  if [ "${1}" ]; then
+    echo -ne "RAM${arw}$(((total-free)/1024))Mb${s0}$(bar "${ram}")${s0}"
+  else
+    echo -ne "RAM${arw}$(bar "${ram}")${s0}"
+  fi
   }
 
 function netw()
   {
   if [ ${n} -eq 0 ]; then
     rm "${tmp}netw" 2>/dev/null
-    /sbin/ifconfig -s | tail -n +2 | cut -d' ' -f1 | while read i;
+    /sbin/ifconfig -s | tail -n +2 | cut -d ' ' -f 1 | while read -r i;
     do
       data=$(/sbin/ifconfig "${i}" | tail -n +2)
       ip=$(echo "${data}" | grep "inet\ " | mawk '{print $2}')
@@ -137,10 +141,10 @@ function netw()
       echo -ne "${rx} ${tx}" > "${tmp}netw-${i}"
     done
   fi
-  while read i;
+  while read -r i;
   do
-    nw=$(echo "$i" | cut -d' ' -f1)
-    ip=$(echo "$i" | cut -d' ' -f2)
+    nw=$(echo "$i" | cut -d ' ' -f 1)
+    ip=$(echo "$i" | cut -d ' ' -f 2)
     rx=$(cat "/sys/class/net/${nw}/statistics/rx_bytes")
     tx=$(cat "/sys/class/net/${nw}/statistics/tx_bytes")
     rt_dat="${rx} ${tx} $(mawk '{print $1,$2}' < "${tmp}netw-${nw}")"
@@ -148,12 +152,12 @@ function netw()
     rt=$(mawk 'BEGIN{FS=" ";r=1024*'"${t}"'}{printf "%s%05.*f'${s0}'%s%05.*f",($1==$3)?"'${l0}'":"'${l1}'",1,($1-$3)/r,($2==$4)?"'${l0}'":"'${l1}'",1,($2-$4)/r}' <<< "${rt_dat}")
     data=$(/sbin/iwconfig "${nw}" 2>/dev/null)
     if [ -z "${data}" ]; then
-      echo -ne "${s1}${nw}${arw}${ip}${s0}${rt}"
+      echo -ne "${s1}${nw}${arw}${ip}${s0}${rt}${s0}"
     else
       ssid=$(sed -ne 's/.*ESSID:"*\([^ ]*\).*"\ \ /\1/p' <<< "${data}")
       q=$(sed -ne 's/.*Link\ Quality="*\([^ ]*\).*/\1/p' <<< "${data}" | mawk 'BEGIN{FS="/"}{printf "%02d",100/$2*$1}')
       #br=$(printf "%02dMb/s" "$(sed -ne 's/.*Bit\ Rate="*\([^ ]*\).*/\1/p' <<< "${data}")") # Mb/s
-      echo -ne "${s1}${nw}${arw}${ssid}${wave}$(bar "${q}")${s0}${rt}"
+      echo -ne "${s1}${nw}${arw}${ssid}${wave}$(bar "${q}")${s0}${rt}${s0}"
     fi
   done < "${tmp}netw"
   }
@@ -170,7 +174,7 @@ function url()
   else
     time=$(mawk '{printf "%s%04.*f",($1<100)?"'${ok}'":"'${nok}'",2,$1/1000}' <<< "${time}")
   fi
-  echo -ne "${name}${s0}${time}"
+  echo -ne "${name}${s0}${time}${s0}"
   }
 
 function weather()
@@ -194,27 +198,35 @@ function weather()
     esac
     echo "${icon}${temp}°" > "${tmp}weather"
   fi
-  echo -ne "$(cat "${tmp}weather" 2>/dev/null)"
+  echo -ne "$(cat "${tmp}weather" 2>/dev/null)${s0}"
   }
 
 function clock()
   {
-  echo -ne "$(date "+%d/%m${s0}%H:%M")" # \u231a${s0}
+  echo -ne "$(date "+%d/%m${s0}%H:%M")${s0}" # \u231a${s0}
   }
 
 function window()
   {
-  id=$(xprop -root 2>/dev/null | mawk '/_NET_ACTIVE_WINDOW\(WINDOW\)/{print $NF}')
-  xprop -id "${id}" | mawk '/WM_NAME\(STRING\)/{$1=$2="";print}' | cut -d'"' -f2
+  id=$(xprop -root 2>/dev/null | awk '/_NET_ACTIVE_WINDOW\(WINDOW\)/ {print $NF}')
+  xprop -id "${id}" | mawk '/WM_NAME\(STRING\)/{$1=$2="";print}' | cut -d '"' -f 2
+  }
+
+function term()
+  {
+  id=$(xprop -root 2>/dev/null | awk '/_NET_ACTIVE_WINDOW\(WINDOW\)/ {print $NF}')
+  pid=$(xprop -id "${id}" | awk '/_NET_WM_PID\(CARDINAL\)/{print $NF}')
+  size=$(stty size < /dev/"$(ps --ppid "${pid}" -o tty | tail -n 1)")
+  echo -ne "${pid}=$(echo "${size}" | cut -d ' ' -f 2)*$(echo "${size}" | cut -d ' ' -f 1)${s0}"
   }
 
 function power()
   {
   if [ "$(which acpi)" ]; then
     if [ ${n} -eq 0 ]; then
-      acpi -V | head -1 | cut -d',' -f2 | sed -e 's/%//' > "${tmp}power";
+      acpi -V | head -1 | cut -d ',' -f 2 | sed -e 's/%//' > "${tmp}power";
     fi
-    echo -ne "\u26a1$(($(cat "${tmp}power" 2>/dev/null)))%"
+    echo -ne "\u26a1$(($(cat "${tmp}power" 2>/dev/null)))%${s0}"
   fi
   }
 
@@ -222,27 +234,33 @@ function mixer()
   {
   # TODO: replace by "--" if mute
   if [ "$(which amixer)" ]; then
-    lvl=$(amixer get "${1}" | tail -1 | cut -d'[' -f2 | cut -d'%' -f1)
-    echo -ne "\u266c$(mawk 'BEGIN{printf "%02d",'"${lvl}"'}')%";
+    lvl=$(amixer get "${1}" | tail -1 | cut -d '[' -f 2 | cut -d '%' -f 1)
+    echo -ne "\u266c$(mawk 'BEGIN{printf "%02d",'"${lvl}"'}')%${s0}";
   fi
   }
 
 # my current setup
 echo -ne "\
-${USER}${s1}\
-$(disk "/dev/sda" "/")${s0}\
-$(disk "/home" "${home}")${s0}\
-$(disk "/cloud" "${cloud}")${s0}\
-$(disk "/data" "${data}")${s1}\
-$(io "sda")${s1}\
-$(cpu "")${s0}\
-$(ram)\
-$(netw)${s1}\
-$(url "poulet.zoy.org" "zoy")${s1}\
-$(clock)${s0}\
-$(weather)${s1}\
-$(power)${s0}\
+${USER}${s0}\
+${s1}\
+$(disk "/" "/")\
+$(disk "/home" "${home}")\
+$(disk "/cloud" "${cloud}")\
+$(disk "/data" "${data}")\
+${s1}\
+$(io "sda")\
+${s1}\
+$(cpu 1)\
+$(ram 1)\
+$(netw)\
+${s1}\
+$(clock)\
+$(weather)\
+${s1}\
+$(power)\
 $(mixer "Master")\
 "
+#$(term)\
+#$(url "lol.pm" "lol")\
 
 exit
