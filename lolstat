@@ -8,27 +8,21 @@
 
 # https://github.com/chiptune/lolstat
 
-ver="0.4.4"
+ver="0.4.5"
 
 tmp="/dev/shm/lolstat-" # tmp file path
 timer=2           # use i3status.conf interval
 tmax=2            # max time for curl call
 tout=2            # curl connection timeout
 
-s0="\u0020"       # space
+s0=" "            # space
 s1="|${s0}"       # separator
-l0="\u25cb"       # led off
-l1="\u25c9"       # led on
+l0="[-]"          # led off \u25cb
+l1="[*]"          # led on  \u25c9
 dead="\u2620"     # he's dead jim
 ok="\u263a"       # ok status
 nok="\u2639"      # not ok status
 arw="»"           # arrow "\u27a9"
-wave="\u223f"     # wave
-
-# unicode glyphs
-home="\u2302"
-cloud="\u2601"
-data="\u26c0"
 
 #warn="\u26a0"    # warning
 #kbd="\u2328"     # keyboard
@@ -62,13 +56,17 @@ fi
 
 function bar()
   {
-  bar="▯▯▯▯▯▯"
-  if   [ "${1}" -gt 90 ]; then bar="▮▮▮▮▮▮";
-  elif [ "${1}" -gt 74 ]; then bar="▮▮▮▮▮▯";
-  elif [ "${1}" -gt 58 ]; then bar="▮▮▮▮▯▯";
-  elif [ "${1}" -gt 42 ]; then bar="▮▮▮▯▯▯";
-  elif [ "${1}" -gt 26 ]; then bar="▮▮▯▯▯▯";
-  elif [ "${1}" -gt 10 ]; then bar="▮▯▯▯▯▯";
+  bar=".........."
+  if   [ "${1}" -gt 99 ]; then bar="||||||||||";
+  elif [ "${1}" -gt 89 ]; then bar="|||||||||.";
+  elif [ "${1}" -gt 79 ]; then bar="||||||||..";
+  elif [ "${1}" -gt 69 ]; then bar="|||||||...";
+  elif [ "${1}" -gt 59 ]; then bar="||||||....";
+  elif [ "${1}" -gt 49 ]; then bar="|||||.....";
+  elif [ "${1}" -gt 39 ]; then bar="||||......";
+  elif [ "${1}" -gt 29 ]; then bar="|||.......";
+  elif [ "${1}" -gt 19 ]; then bar="||........";
+  elif [ "${1}" -gt 09 ]; then bar="|.........";
   fi
   echo -ne "${bar}${1}%"
   }
@@ -88,16 +86,17 @@ function disk()
 
 function io()
   {
-  if [ -r "/sys/block/${1}/stat" ]; then
-    if [ ${n} -eq 0 ]; then mawk '{print $3,$7}' < "/sys/block/${1}/stat" > "${tmp}io"; fi
-    data=$(mawk '{print $3,$7}' < "/sys/block/${1}/stat")" "$(mawk '{print $1,$2}' < "${tmp}io");
+  dev=$(lsblk | sed -n "$((1+$1))p" | cut -d ' ' -f 1)
+  if [ -r "/sys/block/${dev}/stat" ]; then
+    if [ ${n} -eq 0 ]; then mawk '{print $3,$7}' < "/sys/block/${dev}/stat" > "${tmp}io"; fi
+    data=$(mawk '{print $3,$7}' < "/sys/block/${dev}/stat")" "$(mawk '{print $1,$2}' < "${tmp}io");
     echo "${data}" > "${tmp}io"
-    bs=$(cat "/sys/block/${1}/queue/physical_block_size") #sudo dd if=/dev/sda1 of=/dev/null count=1
+    bs=$(cat "/sys/block/${dev}/queue/physical_block_size") #sudo dd if=/dev/sda1 of=/dev/null count=1
     io=$(mawk 'BEGIN{FS=" ";r='"${bs}"'/1024/'"${t}"'}{printf "%s%03d'"${s0}"'%s%03d",($1-$3<r)?"'"${l0}"'":"'"${l1}"'",($1-$3)*r,($2-$4<r)?"'"${l0}"'":"'"${l1}"'",($2-$4)*r}' <<< "${data}")
   else
     io="?"
   fi
-  echo -ne "${1}${arw}${io}${s0}"
+  echo -ne "${dev}${arw}${io}${s0}"
   }
 
 function cpu()
@@ -149,7 +148,7 @@ function netw()
     tx=$(cat "/sys/class/net/${nw}/statistics/tx_bytes")
     rt_dat="${rx} ${tx} $(mawk '{print $1,$2}' < "${tmp}netw-${nw}")"
     echo -ne "${rt_dat}" > "${tmp}netw-${nw}"
-    rt=$(mawk 'BEGIN{FS=" ";r=1024*'"${t}"'}{printf "%s%05.*f'${s0}'%s%05.*f",($1==$3)?"'${l0}'":"'${l1}'",1,($1-$3)/r,($2==$4)?"'${l0}'":"'${l1}'",1,($2-$4)/r}' <<< "${rt_dat}")
+    rt=$(mawk 'BEGIN{FS=" ";r=1024*'"${t}"'}{printf "%s%05.*f %s%05.*f",($1==$3)?"'${l0}'":"'${l1}'",1,($1-$3)/r,($2==$4)?"'${l0}'":"'${l1}'",1,($2-$4)/r}' <<< "${rt_dat}")
     data=$(/sbin/iwconfig "${nw}" 2>/dev/null)
     if [ -z "${data}" ]; then
       echo -ne "${s1}${nw}${arw}${ip}${s0}${rt}${s0}"
@@ -157,7 +156,7 @@ function netw()
       ssid=$(sed -ne 's/.*ESSID:"*\([^ ]*\).*"\ \ /\1/p' <<< "${data}")
       q=$(sed -ne 's/.*Link\ Quality="*\([^ ]*\).*/\1/p' <<< "${data}" | mawk 'BEGIN{FS="/"}{printf "%02d",100/$2*$1}')
       #br=$(printf "%02dMb/s" "$(sed -ne 's/.*Bit\ Rate="*\([^ ]*\).*/\1/p' <<< "${data}")") # Mb/s
-      echo -ne "${s1}${nw}${arw}${ssid}${wave}$(bar "${q}")${s0}${rt}${s0}"
+      echo -ne "${s1}${nw}${arw}${ssid}~$(bar "${q}")${s0}${rt}${s0}"
     fi
   done < "${tmp}netw"
   }
@@ -196,7 +195,7 @@ function weather()
       "11d"|"11n") icon="\u2608";; # thunderstorm
       "13d"|"13n") icon="\u2603";; # snow
     esac
-    echo "${icon}${temp}°" > "${tmp}weather"
+    echo "${temp}°" > "${tmp}weather" #${icon}
   fi
   echo -ne "$(cat "${tmp}weather" 2>/dev/null)${s0}"
   }
@@ -235,20 +234,20 @@ function mixer()
   # TODO: replace by "--" if mute
   if [ "$(which amixer)" ]; then
     lvl=$(amixer get "${1}" | tail -1 | cut -d '[' -f 2 | cut -d '%' -f 1)
-    echo -ne "\u266c$(mawk 'BEGIN{printf "%02d",'"${lvl}"'}')%${s0}";
+    echo -ne "v:$(mawk 'BEGIN{printf "%02d",'"${lvl}"'}')%${s0}";
   fi
   }
 
 # my current setup
-echo -ne "\
+out="\
 ${USER}${s0}\
 ${s1}\
 $(disk "/" "/")\
-$(disk "/home" "${home}")\
-$(disk "/cloud" "${cloud}")\
-$(disk "/data" "${data}")\
+$(disk "/home" "~")\
+$(disk "/cloud" "c:")\
+$(disk "/data" "d:")\
 ${s1}\
-$(io "sda")\
+$(io 1)\
 ${s1}\
 $(cpu 1)\
 $(ram 1)\
@@ -262,5 +261,7 @@ $(mixer "Master")\
 "
 #$(term)\
 #$(url "lol.pm" "lol")\
+
+echo -ne ${out::-1}
 
 exit
