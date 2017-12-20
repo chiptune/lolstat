@@ -8,7 +8,7 @@
 
 # https://github.com/chiptune/lolstat
 
-ver="0.4.6"
+ver="0.4.7"
 
 tmp="/dev/shm/lolstat-" # tmp file path
 timer=2           # use i3status.conf interval
@@ -17,8 +17,10 @@ tout=2            # curl connection timeout
 
 s0=" "            # space
 s1="\u00c2${s0}"  # separator
-l0="\u00c5"       # led off \u25cb
-l1="\u00c6"       # led on  \u25c9
+l0="\u00c5"       # led off
+l1="\u00c6"       # led on
+b0="\u00c0"       # bar empty
+b1="\u00c1"       # bar full
 disk="\u00b8"     # floppy disk
 note="\u00cd"     # music note
 dead="\u2620"     # he's dead jim
@@ -46,26 +48,27 @@ else
 fi
 
 if [ ${n} -eq 0 ]; then
-  curl -o "${tmp}ip" -s "http://ipecho.net/plain"\
-  -m ${tmax} --connect-timeout ${tout}
-  curl -o "${tmp}geo" -s "https://freegeoip.net/json/$(cat "${tmp}ip")"\
-  -m ${tmax} --connect-timeout ${tout}
+  if [ "$(which curl)" ]; then
+    curl -o "${tmp}ip" -s "http://ipecho.net/plain"\
+    -m ${tmax} --connect-timeout ${tout}
+    curl -o "${tmp}geo" -s "https://freegeoip.net/json/$(cat "${tmp}ip")"\
+    -m ${tmax} --connect-timeout ${tout}
+  fi
 fi
 
 function bar()
   {
-  a="\u00c0"
-  b="\u00c1"
+  if [ "${2}" ]; then n=${2}; else n=10; fi
   bar=""
   i=0
-  while [ $i -lt 90 ]
+  while [ $i -lt 100 ]
   do
-    if [ "$((${1}-6))" -gt $i ]; then
-      bar="${bar}${b}";
+    if [ "$((${1}-50/n+1))" -gt $i ]; then
+      bar="${bar}${b1}";
     else
-      bar="${bar}${a}";
+      bar="${bar}${b0}";
     fi
-    i=$((i+10))
+    i=$((i+100/n))
   done
   echo -ne "${bar}${1}%"
   }
@@ -95,7 +98,10 @@ function io()
   else
     io="?"
   fi
-  echo -ne "IO${arw}${io}${s0}"
+  if [ "${2}" -eq 1 ]; then
+    echo -ne "IO${arw}${dev}${s0}";
+  fi
+  echo -ne "${io}${s0}"
   }
 
 function cpu()
@@ -104,11 +110,12 @@ function cpu()
   data=$(mawk '/cpu\ /{printf "%.*f %.*f",0,$2+$3+$4,0,$2+$3+$4+$5}' < /proc/stat)' '$(mawk '{print $1,$2}' < "${tmp}cpu")
   echo -ne "${data}" > "${tmp}cpu"
   cpu=$(mawk 'BEGIN{FS=" "}{printf "%02d",100/($2-$4)*($1-$3)}' <<< "${data}")
-  #freq=$(lscpu | mawk '/CPU\ MHz/{printf "%04dMHz",$NF}')
-  if [ "${1}" ]; then
-    echo -ne "CPU${arw}$(bar "${cpu}")${s0}" #${freq}${s0}
+  echo -ne "CPU${arw}"
+  if [ "${1}" -eq 1 ]; then
+    freq=$(lscpu | mawk '/CPU\ MHz/{printf "%04dMHz",$NF}')
+    echo -ne "${freq}${s0}$(bar "${cpu}" 5)${s0}"
   else
-    echo -ne "CPU${arw}$(bar "${cpu}")${s0}"
+    echo -ne "$(bar "${cpu}")${s0}"
   fi
   }
 
@@ -116,11 +123,12 @@ function ram()
   {
   total=$(mawk '/MemTotal/{print $2}' /proc/meminfo)
   free=$(mawk '/MemFree/{print $2}' /proc/meminfo)
-  ram=$(mawk 'BEGIN{FS=" "}{printf "%02d",100/$1*($1-$2)}' <<< "${total} ${free}")
-  if [ "${1}" ]; then
-    echo -ne "RAM${arw}$(bar "${ram}")${s0}" #$(((total-free)/1024))Mb${s0}
+  echo -ne "RAM${arw}"
+  if [ "${1}" -eq 1 ]; then
+    ram=$(mawk 'BEGIN{FS=" "}{printf "%02d",100/$1*($1-$2)}' <<< "${total} ${free}")
+    echo -ne "$(((total-free)/1024))Mb${s0}$(bar "${ram}" 5)${s0}"
   else
-    echo -ne "RAM${arw}$(bar "${ram}")${s0}"
+    echo -ne "$(bar "${ram}")${s0}"
   fi
   }
 
@@ -152,10 +160,10 @@ function netw()
     if [ -z "${data}" ]; then
       echo -ne "${s1}${nw}${arw}${ip}${s0}${rt}${s0}"
     else
-      #ssid=$(sed -ne 's/.*ESSID:"*\([^ ]*\).*"\ \ /\1/p' <<< "${data}")
       q=$(sed -ne 's/.*Link\ Quality="*\([^ ]*\).*/\1/p' <<< "${data}" | mawk 'BEGIN{FS="/"}{printf "%02d",100/$2*$1}')
       #br=$(printf "%02dMb/s" "$(sed -ne 's/.*Bit\ Rate="*\([^ ]*\).*/\1/p' <<< "${data}")") # Mb/s
-      echo -ne "${s1}${nw}${arw}$(bar "${q}")${s0}${rt}${s0}" # ${ssid}~
+      #ssid=$(sed -ne 's/.*ESSID:"*\([^ ]*\).*"\ \ /\1/p' <<< "${data}")
+      echo -ne "${s1}${nw}${arw}$(bar "${q}" 5)${s0}${rt}${s0}" # ${ssid}~
     fi
   done < "${tmp}netw"
   }
@@ -179,30 +187,34 @@ function weather()
   {
   if [ ${n} -eq 0 ]; then
     coord=$(cat "${tmp}geo")
-    lat=$(echo -ne "${coord}" | sed -e 's/.*"latitude":\([^,]*\).*/\1/')
-    lon=$(echo -ne "${coord}" | sed -e 's/.*"longitude":\([^,]*\).*/\1/')
-    data=$(curl -s "http://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&APPID=c8236a643beb666d2042d55869b69258" -m "${tmax}" --connect-timeout "${tout}")
-    temp=$(echo -ne "${data}" | sed -ne 's/.*"temp":"*\([^ ]*\).*",/\1/p' | mawk '{printf "%02.*f",1,$1}')
-    code=$(echo "${data}" | sed -e 's/.*"icon":"\([^"]*\).*/\1/')
-    case "${code}" in
-      "01d"|"01n") icon="\u00d2";; # clear sky
-      "02d"|"02n") icon="\u00d3";; # few clouds
-      "03d"|"03n") icon="\u00d4";; # scattered clouds
-      "04d"|"04n") icon="\u00d5";; # broken clouds
-      "09d"|"09n") icon="\u00d6";; # shower rain
-      "10d"|"10n") icon="\u00d7";; # rain
-      "11d"|"11n") icon="\u00d8";; # thunderstorm
-      "13d"|"13n") icon="\u00d9";; # snow
-      "50d"|"50n") icon="\u00da";; # mist
-    esac
-    echo "${icon}${temp}°" > "${tmp}weather"
+    if [ "${coord}" ]; then
+      lat=$(echo -ne "${coord}" | sed -e 's/.*"latitude":\([^,]*\).*/\1/')
+      lon=$(echo -ne "${coord}" | sed -e 's/.*"longitude":\([^,]*\).*/\1/')
+      data=$(curl -s "http://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&APPID=c8236a643beb666d2042d55869b69258" -m "${tmax}" --connect-timeout "${tout}")
+      if [ "${data}" ]; then
+        temp=$(echo -ne "${data}" | sed -ne 's/.*"temp":"*\([^ ]*\).*",/\1/p' | mawk '{printf "%02.*f",1,$1}')
+        code=$(echo -ne "${data}" | sed -e 's/.*"icon":"\([^"]*\).*/\1/')
+        case "${code}" in
+          "01d"|"01n") icon="\u00d2";; # clear sky
+          "02d"|"02n") icon="\u00d3";; # few clouds
+          "03d"|"03n") icon="\u00d4";; # scattered clouds
+          "04d"|"04n") icon="\u00d5";; # broken clouds
+          "09d"|"09n") icon="\u00d6";; # shower rain
+          "10d"|"10n") icon="\u00d7";; # rain
+          "11d"|"11n") icon="\u00d8";; # thunderstorm
+          "13d"|"13n") icon="\u00d9";; # snow
+          "50d"|"50n") icon="\u00da";; # mist
+        esac
+        echo "${icon}${temp}°" > "${tmp}weather"
+      fi
+    fi
   fi
   echo -ne "$(cat "${tmp}weather" 2>/dev/null)${s0}"
   }
 
 function clock()
   {
-  echo -ne "$(date "+%d/%m${s0}%H:%M")${s0}" # \u231a${s0}
+  echo -ne "$(date "+%d.%m${s0}%H:%M")${s0}" # \u231a${s0}
   }
 
 function window()
@@ -236,7 +248,8 @@ function mixer()
   {
   # TODO: replace by "--" if mute
   if [ "$(which amixer)" ]; then
-    lvl=$(amixer get "${1}" | tail -1 | cut -d '[' -f 2 | cut -d '%' -f 1)
+    if [ "${2}" ]; then card=${2}; else card=0; fi
+    lvl=$(amixer -c "${card}" get "${1}" | tail -1 | cut -d '[' -f 2 | cut -d '%' -f 1)
     if [ -n "${lvl}" ]; then
       echo -ne "${note}$(mawk 'BEGIN{printf "%02d",'"${lvl}"'}')%${s0}";
     fi
@@ -250,17 +263,17 @@ $(disk "/home" "~")\
 $(disk "/cloud" "${disk}")\
 $(disk "/data" "${disk}")\
 ${s1}\
-$(io 1)\
+$(io 1 0)\
 ${s1}\
-$(cpu 1)\
+$(cpu 0)\
 $(ram 1)\
-$(netw)\
+$(netw 1)\
 ${s1}\
 $(clock)\
 $(weather)\
 ${s1}\
 $(power)\
-$(mixer "Master")\
+$(mixer "Speaker" 1)\
 "
 #$(term)${s0}\
 #${USER}${s0}\
