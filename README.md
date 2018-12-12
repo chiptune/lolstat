@@ -32,13 +32,23 @@ $(mixer "**channel**") | current sound mixer **channel** volume (generally `Mast
 i3status -c ~/.i3/i3status.conf | while read line; do ~/.i3/lolstat 2>/dev/null || exit 1; done
 ```
 
-3.  edit your `~/.i3/config` file and update the `status_command` line as following:
+3.  add lolstat font to your local fonts:
 
 ```bash
-status_command ~/.i3/i3status.sh
+mkdir -p ~/.local/share/fonts
+cp lolstat.ttf ~/.local/share/fonts
 ```
 
-4.  reload your i3wm setup and it's done! \\:D/
+4.  edit your `~/.i3/config` file and update the `status_command` line as following:
+
+```bash
+bar {
+  font pango:lolstat 20
+  status_command ~/.i3/i3status.sh
+}
+```
+
+5.  reload your i3wm ($mod+shift+r) setup and it's done! \\:D/
 
 ### bugfix
 
