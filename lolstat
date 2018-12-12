@@ -58,12 +58,13 @@ fi
 
 function bar()
   {
+  val=$((10#${1} + 1))
   if [ "${2}" ]; then n=${2}; else n=10; fi
   bar=""
   i=0
   while [ $i -lt 100 ]
   do
-    if [ "$((${1}-50/n+1))" -gt $i ]; then
+    if [ "$((${val}-50/n+1))" -gt $i ]; then
       bar="${bar}${b1}";
     else
       bar="${bar}${b0}";
